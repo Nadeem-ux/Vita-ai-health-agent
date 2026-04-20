@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vita — Personal Health Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --surface: #111916;
+    --surface2: #172116;
+    --border: rgba(120,200,140,0.08);
+    --border2: rgba(120,200,140,0.16);
+    --text: #e8f0ea;
+    --muted: #6b8870;
+    --accent: #4ade80;
+    --accent2: #86efac;
+    --accent-dim: rgba(74,222,128,0.12);
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --radius: 14px;
+    --font-head: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(74,222,128,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(74,222,128,0.04) 0%, transparent 60%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,15,13,0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: var(--font-head);
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(74,222,128,0.3);
+    animation: breathe 3s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.75); }
+  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .status-pill {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .status-pill.ok { color: var(--accent); border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.06); }
+  .status-pill.err { color: var(--danger); border-color: rgba(248,113,113,0.3); }
+
+  .demo-btn {
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .demo-btn:hover { color: var(--warn); border-color: rgba(251,191,36,0.4); }
+  .demo-btn.active { color: var(--warn); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.08); }
+
+  .app {
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    flex: 1;
+    height: calc(100vh - 57px);
+    overflow: hidden;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 14px;
+    opacity: 0.8;
+  }
+
+  .quick-log { display: flex; flex-direction: column; gap: 14px; }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .field-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    font-family: var(--font-body);
+  }
+  .chip:hover { border-color: rgba(74,222,128,0.4); color: var(--accent2); background: var(--accent-dim); }
+  .chip.selected { background: rgba(74,222,128,0.12); border-color: var(--accent); color: var(--accent); }
+
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  input[type=range] {
+    flex: 1; appearance: none;
+    height: 3px; background: var(--border2); border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  .slider-val { font-size: 13px; font-weight: 500; color: var(--accent); min-width: 22px; text-align: right; }
+
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 9px 12px;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+  }
+  textarea:focus { border-color: rgba(74,222,128,0.3); }
+  textarea::placeholder { color: var(--muted); opacity: 0.6; }
+
+  .log-btn {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    color: #0a0f0d;
+    border: none; border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .log-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(74,222,128,0.25); }
+  .log-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  .memory-list { display: flex; flex-direction: column; gap: 8px; }
+  .memory-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+  .memory-item strong { color: var(--text); display: block; font-size: 11px; margin-bottom: 2px; }
+  .no-memory { font-size: 12px; color: var(--muted); font-style: italic; opacity: 0.6; }
+
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+
+  .chat-area {
+    flex: 1; overflow-y: auto;
+    padding: 32px 36px;
+    display: flex; flex-direction: column; gap: 22px;
+    scroll-behavior: smooth;
+  }
+
+  .welcome {
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 480px;
+    margin: auto;
+  }
+  .welcome-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid rgba(74,222,128,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 24px;
+  }
+  .welcome h2 {
+    font-family: var(--font-head);
+    font-size: 30px; margin-bottom: 12px;
+    font-weight: 400; color: var(--text);
+    line-height: 1.2;
+  }
+  .welcome h2 em { color: var(--accent); font-style: italic; }
+  .welcome p { color: var(--muted); font-size: 14px; line-height: 1.8; }
+  .suggestion-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; margin-top: 28px;
+  }
+  .suggestion {
+    padding: 8px 16px; border-radius: 20px;
+    border: 1px solid var(--border2); font-size: 13px;
+    color: var(--muted); cursor: pointer;
+    transition: all 0.2s; background: transparent; font-family: var(--font-body);
+  }
+  .suggestion:hover { border-color: rgba(74,222,128,0.4); color: var(--accent2); background: var(--accent-dim); }
+
+  .message { display: flex; gap: 14px; max-width: 800px; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message.user { align-self: flex-end; flex-direction: row-reverse; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; border: 1px solid var(--border2);
+    margin-top: 3px;
+  }
+  .avatar.ai { background: var(--accent-dim); color: var(--accent); font-size: 16px; }
+  .avatar.user-av { background: rgba(134,239,172,0.08); color: var(--accent2); font-size: 12px; }
+  .bubble {
+    padding: 13px 17px; border-radius: 16px;
+    font-size: 14px; line-height: 1.75; max-width: 640px;
+  }
+  .message.ai .bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px; color: var(--text);
+  }
+  .message.user .bubble {
+    background: var(--accent-dim);
+    border: 1px solid rgba(74,222,128,0.15);
+    border-top-right-radius: 4px; color: var(--text);
+  }
+  .bubble p { margin-bottom: 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble strong { color: var(--accent); font-weight: 500; }
+  .bubble ul { padding-left: 18px; }
+  .bubble li { margin-bottom: 4px; }
+
+  .typing { display: flex; align-items: center; gap: 5px; padding: 13px 17px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); opacity: 0.4; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .input-bar {
+    padding: 14px 28px 18px;
+    border-top: 1px solid var(--border);
+    background: rgba(10,15,13,0.6);
+  }
+  .input-wrap {
+    display: flex; gap: 10px; align-items: flex-end;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 14px; padding: 10px 12px;
+    transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within { border-color: rgba(74,222,128,0.35); }
+  #chat-input {
+    flex: 1; background: transparent; border: none;
+    color: var(--text); font-family: var(--font-body);
+    font-size: 14px; outline: none; resize: none;
+    max-height: 120px; line-height: 1.5;
+  }
+  #chat-input::placeholder { color: var(--muted); }
+  .send-btn {
+    background: var(--accent); border: none;
+    border-radius: 9px; color: #0a0f0d;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; font-weight: bold;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .send-btn:hover { transform: scale(1.05); }
+  .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .chat-area { padding: 20px 18px; }
+    .input-bar { padding: 12px 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    Vita
+  </div>
+  <div class="header-right">
+    <button class="demo-btn" id="demo-btn" onclick="toggleDemoMode()">Start Demo</button>
+    <span class="status-pill" id="backend-status">Connecting...</span>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Log Today</div>
+      <div class="quick-log">
+
+        <div class="field-group">
+          <span class="field-label">Mood</span>
+          <div class="field-row">
+            <button class="chip" onclick="toggleChip(this,'mood')">😔 Low</button>
+            <button class="chip" onclick="toggleChip(this,'mood')">😐 Okay</button>
+            <button class="chip" onclick="toggleChip(this,'mood')">😊 Good</button>
+            <button class="chip" onclick="toggleChip(this,'mood')">🤩 Great</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Sleep (hours)</span>
+          <div class="slider-row">
+            <input type="range" min="2" max="12" value="7" step="0.5" id="sleep-slider"
+              oninput="document.getElementById('sleep-val').textContent=this.value">
+            <span class="slider-val" id="sleep-val">7</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Energy (1-10)</span>
+          <div class="slider-row">
+            <input type="range" min="1" max="10" value="6" step="1" id="energy-slider"
+              oninput="document.getElementById('energy-val').textContent=this.value">
+            <span class="slider-val" id="energy-val">6</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Symptoms</span>
+          <div class="field-row">
+            <button class="chip" onclick="toggleChip(this,'symptom')">Headache</button>
+            <button class="chip" onclick="toggleChip(this,'symptom')">Fatigue</button>
+            <button class="chip" onclick="toggleChip(this,'symptom')">Stress</button>
+            <button class="chip" onclick="toggleChip(this,'symptom')">Nausea</button>
+            <button class="chip" onclick="toggleChip(this,'symptom')">Back pain</button>
+            <button class="chip" onclick="toggleChip(this,'symptom')">Anxiety</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Exercise today?</span>
+          <div class="field-row">
+            <button class="chip" onclick="toggleChip(this,'exercise')">None</button>
+            <button class="chip" onclick="toggleChip(this,'exercise')">Walk</button>
+            <button class="chip" onclick="toggleChip(this,'exercise')">Workout</button>
+            <button class="chip" onclick="toggleChip(this,'exercise')">Yoga</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Notes (optional)</span>
+          <textarea id="log-notes" rows="2" placeholder="Anything else to note..."></textarea>
+        </div>
+
+        <button class="log-btn" id="log-btn" onclick="submitLog()">Log Today's Health</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Recent Memories</div>
+      <div class="memory-list" id="memory-list">
+        <div class="no-memory">No memories yet. Log your first entry!</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="chat-area" id="chat-area">
+      <div class="welcome" id="welcome-screen">
+        <div class="welcome-icon">🌿</div>
+        <h2>Your personal health<br><em>companion</em></h2>
+        <p>I remember your health history and spot patterns over time. Log your daily vitals in the sidebar, then ask me anything.</p>
+        <div class="suggestion-chips">
+          <button class="suggestion" onclick="useSuggestion(this)">How have I been sleeping this week?</button>
+          <button class="suggestion" onclick="useSuggestion(this)">What patterns do you notice?</button>
+          <button class="suggestion" onclick="useSuggestion(this)">Give me a weekly health summary</button>
+          <button class="suggestion" onclick="useSuggestion(this)">What should I focus on improving?</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <textarea id="chat-input" rows="1" placeholder="Ask about your health patterns..."
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">↑</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const BACKEND = 'http://127.0.0.1:5000';
+const selectedChips = { mood: null, symptom: [], exercise: null };
+
+let DEMO_MODE = false;
+
+/* ── 1. Global demo history array ─────────────────────────────────────── */
+let demoHistory = [];
+
+/* ── 2. Preloaded sample logs (loaded when demo starts) ───────────────── */
+const DEMO_SEED = [
+  { date: 'Mon', mood: '😊 Good',  sleep: 7.5, energy: 7, symptoms: ['none'],    exercise: 'Walk',    notes: '' },
+  { date: 'Tue', mood: '😐 Okay',  sleep: 5.5, energy: 4, symptoms: ['Fatigue'], exercise: 'None',    notes: 'Long meeting day' },
+  { date: 'Wed', mood: '😊 Good',  sleep: 7.0, energy: 6, symptoms: ['none'],    exercise: 'Workout', notes: '' },
+  { date: 'Thu', mood: '😔 Low',   sleep: 4.5, energy: 3, symptoms: ['Stress', 'Headache'], exercise: 'None', notes: 'Deadline stress' },
+  { date: 'Fri', mood: '😐 Okay',  sleep: 6.5, energy: 5, symptoms: ['Fatigue'], exercise: 'Walk',    notes: '' },
+  { date: 'Sat', mood: '🤩 Great', sleep: 8.5, energy: 9, symptoms: ['none'],    exercise: 'Workout', notes: 'Felt amazing' },
+  { date: 'Sun', mood: '😊 Good',  sleep: 8.0, energy: 8, symptoms: ['none'],    exercise: 'Yoga',    notes: 'Relaxed morning' },
+];
+
+/* ── 3. Dynamic AI response generator ────────────────────────────────── */
+function generateDemoAIResponse(message, history) {
+  const msg = message.toLowerCase();
+  const count = history.length;
+
+  if (count === 0) {
+    return "**Vita:** I don't have any logs to analyse yet. Use the sidebar to log today's health and I'll start spotting patterns for you!";
+  }
+
+  /* ── compute stats from live history ── */
+  const avgSleep  = history.reduce(function(s, e) { return s + e.sleep;  }, 0) / count;
+  const avgEnergy = history.reduce(function(s, e) { return s + e.energy; }, 0) / count;
+
+  const lowSleepDays  = history.filter(function(e) { return e.sleep  < 6;  });
+  const highEnergyDays= history.filter(function(e) { return e.energy >= 7; });
+  const lowEnergyDays = history.filter(function(e) { return e.energy <= 4; });
+
+  const moodCounts = {};
+  history.forEach(function(e) {
+    moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1;
+  });
+  const dominantMood = Object.keys(moodCounts).reduce(function(a, b) {
+    return moodCounts[a] >= moodCounts[b] ? a : b;
+  });
+
+  const allSymptoms = [];
+  history.forEach(function(e) {
+    e.symptoms.forEach(function(s) { if (s !== 'none') allSymptoms.push(s); });
+  });
+  const symptomFreq = {};
+  allSymptoms.forEach(function(s) { symptomFreq[s] = (symptomFreq[s] || 0) + 1; });
+  const topSymptom = Object.keys(symptomFreq).sort(function(a,b){ return symptomFreq[b]-symptomFreq[a]; })[0] || null;
+
+  const exerciseDays = history.filter(function(e) { return e.exercise !== 'None' && e.exercise !== 'not logged'; });
+  const exerciseRate = Math.round((exerciseDays.length / count) * 100);
+
+  /* correlation: low sleep → low energy? */
+  const lowSleepLowEnergy = history.filter(function(e) { return e.sleep < 6 && e.energy <= 4; });
+  const sleepEnergyLinked = lowSleepLowEnergy.length >= 2;
+
+  const latest = history[history.length - 1];
+
+  /* ── route by question intent ── */
+
+  if (msg.includes('sleep')) {
+    var reply = '**Sleep Analysis** (' + count + ' entries)\n\n';
+    reply += 'Your average sleep is **' + avgSleep.toFixed(1) + ' hours**.';
+    if (avgSleep >= 7.5) {
+      reply += ' That\'s excellent — you\'re consistently hitting the recommended range. ';
+    } else if (avgSleep >= 6) {
+      reply += ' That\'s slightly under the 7–8 hour target. ';
+    } else {
+      reply += ' That\'s noticeably below the healthy range and likely affecting your days. ';
+    }
+    if (lowSleepDays.length > 0) {
+      reply += '\n\nYou had **' + lowSleepDays.length + ' night(s)** under 6 hours';
+      if (lowSleepDays[0].date) reply += ' (including ' + lowSleepDays.map(function(d){ return d.date; }).join(', ') + ')';
+      reply += '.';
+    }
+    if (sleepEnergyLinked) {
+      reply += ' I\'ve noticed that on those low-sleep nights, your energy the next day dropped significantly too.';
+    }
+    reply += '\n\n*Tip:* Even adding 30 minutes to your bedtime on 3 nights this week could raise your average meaningfully.';
+    return reply;
+  }
+
+  if (msg.includes('energy')) {
+    var reply = '**Energy Levels** (' + count + ' entries)\n\n';
+    reply += 'Your average energy is **' + avgEnergy.toFixed(1) + '/10**.';
+    if (avgEnergy >= 7) {
+      reply += ' You\'re running well — most days feel strong.';
+    } else if (avgEnergy >= 5) {
+      reply += ' Moderate range. There\'s room to lift this with a few consistent changes.';
+    } else {
+      reply += ' This is low. Something is consistently draining your reserves.';
+    }
+    if (highEnergyDays.length > 0) {
+      var exOnHighDays = highEnergyDays.filter(function(e){ return e.exercise !== 'None'; }).length;
+      reply += '\n\nOn your **' + highEnergyDays.length + ' high-energy day(s)**, ' + exOnHighDays + ' of them included exercise — that\'s a strong signal.';
+    }
+    if (lowEnergyDays.length > 0) {
+      reply += '\n\nYou had **' + lowEnergyDays.length + ' low-energy day(s)**';
+      if (sleepEnergyLinked) reply += ', most of which followed short sleep nights';
+      reply += '.';
+    }
+    reply += '\n\n*Tip:* Try logging energy before and after exercise days — the pattern usually becomes very clear within a week.';
+    return reply;
+  }
+
+  if (msg.includes('mood')) {
+    var reply = '**Mood Trends** (' + count + ' entries)\n\n';
+    reply += 'Your most frequent mood has been **' + dominantMood + '**.';
+    var goodCount = (moodCounts['😊 Good'] || 0) + (moodCounts['🤩 Great'] || 0);
+    var lowCount  = (moodCounts['😔 Low']  || 0) + (moodCounts['😐 Okay']  || 0);
+    reply += ' You\'ve had **' + goodCount + ' positive day(s)** and **' + lowCount + ' tougher day(s)** so far.';
+    if (latest) {
+      reply += '\n\nYour most recent entry shows mood as **' + latest.mood + '** with energy ' + latest.energy + '/10 and ' + latest.sleep + ' hours of sleep.';
+    }
+    if (topSymptom) {
+      reply += '\n\nWorth noting: **' + topSymptom + '** has come up most often in your logs, which can quietly pull mood down.';
+    }
+    reply += '\n\n*Tip:* Mood often follows sleep by a day. If you had a rough night, give yourself grace the next morning.';
+    return reply;
+  }
+
+  if (msg.includes('pattern') || msg.includes('notice') || msg.includes('trend')) {
+    var reply = '**Patterns I\'ve Spotted** (' + count + ' entries)\n\n';
+    if (sleepEnergyLinked) {
+      reply += '- **Sleep → Energy link:** On nights you sleep under 6 hours, energy reliably drops to 4 or below the next day.\n';
+    }
+    if (exerciseRate >= 50) {
+      reply += '- **Exercise consistency:** You\'ve been active on ' + exerciseRate + '% of logged days — that\'s a healthy habit forming.\n';
+    } else {
+      reply += '- **Exercise gap:** Exercise has only appeared on ' + exerciseRate + '% of your days. On the days you did move, energy tended to be higher.\n';
+    }
+    if (topSymptom) {
+      reply += '- **Recurring symptom:** ' + topSymptom + ' has shown up multiple times. It might be worth tracking what precedes it.\n';
+    }
+    reply += '- **Mood baseline:** Your dominant mood is ' + dominantMood + ' across ' + count + ' entries.';
+    reply += '\n\n*The more you log, the sharper these patterns get.*';
+    return reply;
+  }
+
+  if (msg.includes('summary') || msg.includes('week') || msg.includes('overview')) {
+    var reply = '**Weekly Health Summary** (' + count + ' entries)\n\n';
+    reply += '- Sleep avg: **' + avgSleep.toFixed(1) + 'h** ' + (avgSleep >= 7 ? '✓' : '— below target') + '\n';
+    reply += '- Energy avg: **' + avgEnergy.toFixed(1) + '/10**\n';
+    reply += '- Dominant mood: **' + dominantMood + '**\n';
+    reply += '- Exercise rate: **' + exerciseRate + '%** of logged days\n';
+    if (topSymptom) reply += '- Most common symptom: **' + topSymptom + '**\n';
+    reply += '\n';
+    if (avgSleep >= 7 && avgEnergy >= 6) {
+      reply += 'Overall this looks like a **solid week**. You\'re maintaining good foundations.';
+    } else if (avgSleep < 6 || avgEnergy < 5) {
+      reply += 'This week has been **demanding**. Sleep and energy both need attention — they\'re feeding into each other.';
+    } else {
+      reply += 'A **mixed week** — some strong days, some harder ones. Consistency in sleep timing would help stabilise things.';
+    }
+    return reply;
+  }
+
+  if (msg.includes('improve') || msg.includes('focus') || msg.includes('suggest') || msg.includes('recommend') || msg.includes('advice')) {
+    var reply = '**My Recommendation**\n\n';
+    var priorities = [];
+    if (avgSleep < 6.5) priorities.push({ area: 'Sleep', reason: 'averaging ' + avgSleep.toFixed(1) + 'h, which is below the 7–8h target', action: 'Set a consistent bedtime 30 minutes earlier than usual for the next 5 days.' });
+    if (avgEnergy < 5)  priorities.push({ area: 'Energy', reason: 'averaging ' + avgEnergy.toFixed(1) + '/10', action: 'Try a short 15-minute walk on your next low-energy morning — it usually gives a faster lift than caffeine.' });
+    if (exerciseRate < 50) priorities.push({ area: 'Movement', reason: 'only active on ' + exerciseRate + '% of days', action: 'Aim to add movement on just one more day this week. Even a 10-minute walk counts.' });
+    if (topSymptom) priorities.push({ area: topSymptom, reason: 'appearing repeatedly in your logs', action: 'Note the time of day it tends to occur and whether sleep was short the night before.' });
+    if (priorities.length === 0) {
+      reply += 'Honestly, your numbers look healthy right now. The best thing you can do is **keep logging consistently** so I can catch early shifts before they become patterns.';
+    } else {
+      reply += 'Based on your ' + count + ' entries, the highest-leverage area right now is **' + priorities[0].area + '** (' + priorities[0].reason + ').\n\n';
+      reply += '*Action:* ' + priorities[0].action;
+      if (priorities.length > 1) {
+        reply += '\n\nSecondary focus: **' + priorities[1].area + '** — ' + priorities[1].action;
+      }
+    }
+    return reply;
+  }
+
+  if (msg.includes('stress') || msg.includes('anxiety')) {
+    var stressDays = history.filter(function(e){ return e.symptoms.indexOf('Stress') !== -1 || e.symptoms.indexOf('Anxiety') !== -1; });
+    var reply = '**Stress & Anxiety Check** (' + count + ' entries)\n\n';
+    if (stressDays.length === 0) {
+      reply += 'No stress or anxiety symptoms logged yet — that\'s great to see. Keep monitoring and flag it early if it starts creeping in.';
+    } else {
+      reply += 'You\'ve logged stress or anxiety on **' + stressDays.length + ' day(s)**.';
+      var avgSleepOnStress = stressDays.reduce(function(s,e){ return s+e.sleep; }, 0) / stressDays.length;
+      reply += ' On those days, average sleep was **' + avgSleepOnStress.toFixed(1) + 'h** — ';
+      reply += avgSleepOnStress < 6.5 ? 'notably low, which likely amplified how stressed you felt.' : 'reasonable, so other factors may be at play.';
+      reply += '\n\n*Tip:* Even a 5-minute breathing exercise before bed on high-stress days can reduce how much stress bleeds into your sleep quality.';
+    }
+    return reply;
+  }
+
+  if (msg.includes('exercise') || msg.includes('workout') || msg.includes('active') || msg.includes('move')) {
+    var reply = '**Exercise Insights** (' + count + ' entries)\n\n';
+    reply += 'You\'ve been active on **' + exerciseDays.length + ' of ' + count + ' day(s)** logged (' + exerciseRate + '%).';
+    if (highEnergyDays.length > 0) {
+      var exOnHighDays = highEnergyDays.filter(function(e){ return e.exercise !== 'None'; }).length;
+      var pct = Math.round((exOnHighDays / highEnergyDays.length) * 100);
+      reply += '\n\nOn your high-energy days, **' + pct + '%** included some form of exercise. The data is pointing in a clear direction.';
+    }
+    if (exerciseRate < 50) {
+      reply += '\n\n*Tip:* You don\'t need intense workouts — even a walk is enough to shift your energy and mood scores noticeably.';
+    } else {
+      reply += '\n\nYou\'re building a solid movement habit. Try to keep at least this frequency next week.';
+    }
+    return reply;
+  }
+
+  if (msg.includes('latest') || msg.includes('today') || msg.includes('last') || msg.includes('recent')) {
+    if (!latest) return '**Vita:** No entries logged yet. Add your first log in the sidebar!';
+    var reply = '**Latest Log';
+    if (latest.date) reply += ' (' + latest.date + ')';
+    reply += '**\n\n';
+    reply += '- Mood: ' + latest.mood + '\n';
+    reply += '- Sleep: ' + latest.sleep + 'h\n';
+    reply += '- Energy: ' + latest.energy + '/10\n';
+    reply += '- Symptoms: ' + (latest.symptoms[0] === 'none' ? 'None reported' : latest.symptoms.join(', ')) + '\n';
+    reply += '- Exercise: ' + latest.exercise + '\n';
+    if (latest.notes) reply += '- Note: *' + latest.notes + '*\n';
+    reply += '\nCompared to your average: sleep is ' + (latest.sleep >= avgSleep ? 'above' : 'below') + ' your avg (' + avgSleep.toFixed(1) + 'h) and energy is ' + (latest.energy >= avgEnergy ? 'above' : 'below') + ' your avg (' + avgEnergy.toFixed(1) + '/10).';
+    return reply;
+  }
+
+  /* ── fallback: general response using real data ── */
+  var reply = '**Vita** (' + count + ' entries analysed)\n\n';
+  reply += 'Based on your logs: avg sleep **' + avgSleep.toFixed(1) + 'h**, avg energy **' + avgEnergy.toFixed(1) + '/10**, dominant mood **' + dominantMood + '**.';
+  if (topSymptom) reply += ' Most flagged symptom: **' + topSymptom + '**.';
+  reply += '\n\nTry asking me about your *sleep*, *energy*, *mood*, *patterns*, *weekly summary*, or *what to improve* — I\'ll give you a detailed answer based on your actual history.';
+  return reply;
+}
+
+/* ── render demo sidebar memories from live demoHistory ──────────────── */
+function renderDemoMemories() {
+  var list = document.getElementById('memory-list');
+  list.innerHTML = '';
+  var recent = demoHistory.slice().reverse().slice(0, 5);
+  recent.forEach(function(m) {
+    var item = document.createElement('div');
+    item.className = 'memory-item';
+    var label = m.date || 'Entry';
+    var syms = m.symptoms[0] === 'none' ? 'No symptoms' : m.symptoms.join(', ');
+    item.innerHTML = '<strong>' + label + '</strong>'
+      + 'Mood: ' + m.mood + ' · Sleep: ' + m.sleep + 'h · Energy: ' + m.energy + '/10 · ' + syms;
+    list.appendChild(item);
+  });
+  if (recent.length === 0) {
+    list.innerHTML = '<div class="no-memory">No entries yet. Log your first one!</div>';
+  }
+}
+
+function toggleDemoMode() {
+  DEMO_MODE = !DEMO_MODE;
+  var btn = document.getElementById('demo-btn');
+  var pill = document.getElementById('backend-status');
+  if (DEMO_MODE) {
+    /* seed history and show memories */
+    demoHistory = DEMO_SEED.slice();
+    btn.textContent = 'Exit Demo';
+    btn.classList.add('active');
+    pill.className = 'status-pill ok';
+    pill.textContent = 'Demo Mode (Simulated AI)';
+    renderDemoMemories();
+  } else {
+    /* clear demo state */
+    demoHistory = [];
+    btn.textContent = 'Start Demo';
+    btn.classList.remove('active');
+    var list = document.getElementById('memory-list');
+    list.innerHTML = '<div class="no-memory">No memories yet. Log your first entry!</div>';
+    checkBackend();
+  }
+}
+
+async function checkBackend() {
+  var pill = document.getElementById('backend-status');
+  try {
+    var r = await fetch(BACKEND + '/health');
+    var d = await r.json();
+    if (d.status === 'ok') {
+      pill.className = 'status-pill ok';
+      if (d.groq && d.hindsight) {
+        pill.textContent = 'All systems ready';
+      } else if (d.groq) {
+        pill.textContent = 'AI ready';
+      } else {
+        pill.textContent = 'Backend up - check .env';
+      }
+    }
+  } catch(e) {
+    pill.className = 'status-pill err';
+    pill.textContent = 'Backend offline - run python server.py';
+  }
+}
+
+function toggleChip(el, group) {
+  if (group === 'symptom') {
+    el.classList.toggle('selected');
+    var txt = el.textContent.trim();
+    if (el.classList.contains('selected')) {
+      if (!selectedChips.symptom.includes(txt)) selectedChips.symptom.push(txt);
+    } else {
+      selectedChips.symptom = selectedChips.symptom.filter(function(s) { return s !== txt; });
+    }
+  } else {
+    el.parentElement.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+    selectedChips[group] = el.textContent.trim();
+  }
+}
+
+async function submitLog() {
+  var sleep  = parseFloat(document.getElementById('sleep-slider').value);
+  var energy = parseInt(document.getElementById('energy-slider').value);
+  var notes  = document.getElementById('log-notes').value.trim();
+  var btn    = document.getElementById('log-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  var payload = {
+    mood:     selectedChips.mood     || 'not logged',
+    sleep:    sleep,
+    energy:   energy,
+    symptoms: selectedChips.symptom.length ? selectedChips.symptom : ['none'],
+    exercise: selectedChips.exercise || 'not logged',
+    notes:    notes
+  };
+
+  hideWelcome();
+
+  if (DEMO_MODE) {
+    /* push into live history — no fetch */
+    var entry = {
+      date:     'New entry',
+      mood:     payload.mood,
+      sleep:    payload.sleep,
+      energy:   payload.energy,
+      symptoms: payload.symptoms,
+      exercise: payload.exercise,
+      notes:    payload.notes
+    };
+    demoHistory.push(entry);
+    renderDemoMemories();
+
+    await new Promise(function(r) { setTimeout(r, 600); });
+
+    var logText = 'Mood: ' + payload.mood
+      + ' · Sleep: ' + payload.sleep + 'h'
+      + ' · Energy: ' + payload.energy + '/10'
+      + (payload.symptoms[0] !== 'none' ? ' · Symptoms: ' + payload.symptoms.join(', ') : '')
+      + ' · Exercise: ' + payload.exercise;
+    addMessage('user', logText);
+
+    var total = demoHistory.length;
+    var avgS  = (demoHistory.reduce(function(s,e){ return s+e.sleep; }, 0) / total).toFixed(1);
+    var avgE  = (demoHistory.reduce(function(s,e){ return s+e.energy; }, 0) / total).toFixed(1);
+    addMessage('ai',
+      '**Log saved!** Entry ' + total + ' recorded.\n\n'
+      + 'Running averages now: sleep **' + avgS + 'h**, energy **' + avgE + '/10**. '
+      + (payload.sleep < 6 ? 'Tonight\'s sleep was short — try to make up for it tomorrow. ' : 'Sleep looks good tonight. ')
+      + (payload.energy <= 4 ? 'Low energy flagged — check if sleep or stress is the driver.' : 'Energy is holding up well.')
+    );
+  } else {
+    try {
+      var r = await fetch(BACKEND + '/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var d = await r.json();
+      addMessage('user', d.logText || 'Health log saved.');
+      addMessage('ai', d.reply || 'Log saved!');
+      loadMemories();
+    } catch(e) {
+      addMessage('ai', 'Could not reach backend. Make sure python server.py is running.');
+    }
+  }
+
+  document.getElementById('log-notes').value = '';
+  btn.disabled = false;
+  btn.textContent = "Log Today's Health";
+}
+
+async function loadMemories() {
+  /* only called in real mode now */
+  try {
+    var r = await fetch(BACKEND + '/memories');
+    var d = await r.json();
+    var list = document.getElementById('memory-list');
+    var mems = d.memories || [];
+    if (!mems.length) return;
+    list.innerHTML = '';
+    mems.slice(0, 5).forEach(function(m) {
+      var item = document.createElement('div');
+      item.className = 'memory-item';
+      var date = (m.metadata && m.metadata.dateLabel) || new Date(m.created_at || Date.now()).toLocaleDateString();
+      item.innerHTML = '<strong>' + date + '</strong>' + (m.content || '').slice(0, 80) + '...';
+      list.appendChild(item);
+    });
+  } catch(e) {}
+}
+
+function hideWelcome() {
+  var w = document.getElementById('welcome-screen');
+  if (w) w.remove();
+}
+
+function addMessage(role, text) {
+  var area = document.getElementById('chat-area');
+  var div  = document.createElement('div');
+  div.className = 'message ' + role;
+  var av = document.createElement('div');
+  av.className = 'avatar ' + (role === 'ai' ? 'ai' : 'user-av');
+  av.textContent = role === 'ai' ? '🌿' : '↑';
+  var bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.innerHTML = fmt(text);
+  div.appendChild(av);
+  div.appendChild(bub);
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function fmt(t) {
+  return '<p>' + t
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n- /g, '<br>• ')
+    + '</p>';
+}
+
+function showTyping() {
+  var area = document.getElementById('chat-area');
+  var div  = document.createElement('div');
+  div.className = 'message ai';
+  div.id = 'typing-ind';
+  var av = document.createElement('div');
+  av.className = 'avatar ai';
+  av.textContent = '🌿';
+  var bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  div.appendChild(av);
+  div.appendChild(bub);
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function hideTyping() {
+  var t = document.getElementById('typing-ind');
+  if (t) t.remove();
+}
+
+async function sendMessageToAI(message) {
+  var r = await fetch(BACKEND + '/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: message })
+  });
+  if (!r.ok) throw new Error('Backend error ' + r.status);
+  var d = await r.json();
+  return d.reply;
+}
+
+async function sendMessage() {
+  var input = document.getElementById('chat-input');
+  var text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  hideWelcome();
+  addMessage('user', text);
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+  try {
+    var reply;
+    if (DEMO_MODE) {
+      /* simulate thinking delay — no fetch */
+      await new Promise(function(r) { setTimeout(r, 900); });
+      reply = generateDemoAIResponse(text, demoHistory);
+    } else {
+      reply = await sendMessageToAI(text);
+    }
+    hideTyping();
+    addMessage('ai', reply);
+  } catch(e) {
+    hideTyping();
+    addMessage('ai', 'Could not reach backend. Make sure python server.py is running.');
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function useSuggestion(btn) {
+  document.getElementById('chat-input').value = btn.textContent;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+checkBackend();
+loadMemories();
+</script>
+</body>
+</html>
